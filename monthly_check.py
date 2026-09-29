@@ -10,7 +10,6 @@ FINMIND_TOKEN = os.getenv("FINMIND_TOKEN")
 STREAMLIT_URL = os.getenv("STREAMLIT_URL", "")
 
 def get_finmind_price(stock_id: str):
-    """取得台股個股/ETF 近一年日線資料"""
     url = "https://api.finmindtrade.com/api/v4/data"
     start_date = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
     params = {
@@ -30,12 +29,12 @@ def get_finmind_price(stock_id: str):
     return pd.DataFrame()
 
 def check_high_dividend_etf(stock_id: str, stock_name: str, df: pd.DataFrame):
-    """通用高股息 ETF 估值與買進檢核邏輯"""
     p = df["close"].iloc[-1]
     
-    # 修正後正確的 52 週最高價與最低價取得方式
+    # 乾淨寫法，絕不出錯
     h_52w = df["close"].max()
     l_52w = df["close"].min()
+    
     rank_52w = ((p - l_52w) / (h_52w - l_52w)) * 100 if h_52w != l_52w else 50
     
     df["MA60"] = df["close"].rolling(60).mean()
