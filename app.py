@@ -4,10 +4,8 @@ import requests
 import plotly.express as px
 from datetime import datetime, timedelta
 
-# 頁面配置
 st.set_page_config(page_title="1000萬資產儀表板", page_icon="📈", layout="centered")
 
-# 行動裝置 PWA 最佳化樣式
 st.markdown("""
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -19,12 +17,10 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 安全讀取 Secrets
 FINMIND_TOKEN = st.secrets.get("FINMIND_TOKEN", "")
 
 @st.cache_data(ttl=3600*6)
 def fetch_finmind_data(stock_id: str) -> pd.DataFrame:
-    """從 FinMind 安全抓取日線數據"""
     url = "https://api.finmindtrade.com/api/v4/data"
     start_date = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
     params = {
@@ -45,7 +41,6 @@ def fetch_finmind_data(stock_id: str) -> pd.DataFrame:
         print(f"抓取 {stock_id} 失敗: {e}")
     return pd.DataFrame()
 
-# 1,000 萬資產 70/30 配置預設持股張數
 DEFAULT_HOLDINGS = {
     "0050": {"name": "元大台灣50", "shares": 35000, "type": "市值型 (70%)"},
     "00878": {"name": "國泰永續高股息", "shares": 45000, "type": "高股息 (10%)"},
@@ -55,7 +50,6 @@ DEFAULT_HOLDINGS = {
 
 st.title("📱 1,000 萬資產與全標的檢核")
 
-# 1. 抓取所有標的數據
 market_data = {}
 with st.spinner('同步最新股市數據中...'):
     for sid in DEFAULT_HOLDINGS.keys():
@@ -63,7 +57,6 @@ with st.spinner('同步最新股市數據中...'):
         if not df_stock.empty:
             market_data[sid] = df_stock
 
-# 2. 算力與卡片繪製邏輯
 if market_data:
     portfolio_rows = []
     total_market_value = 0.0
@@ -87,10 +80,8 @@ if market_data:
         df_pf["攻守分類"] = df_pf["類別"].apply(lambda x: "市值型 (目標70%)" if "市值型" in x else "高股息 (目標30%)")
         type_summary = df_pf.groupby("攻守分類")["當前市值"].sum().reset_index()
 
-        # 顯示總市值
         st.metric(label="💰 當前投資組合總市值", value=f"${total_market_value:,.0f} 元")
 
-        # 畫攻守比例圓餅圖
         fig_ratio = px.pie(
             type_summary, 
             values='當前市值', 
@@ -104,10 +95,29 @@ if market_data:
 
         st.divider()
 
-        # 高股息標的估值卡片
-        st.subheader("🔔 高股息 ETF 領息加碼檢核區")
-        tab1, tab2, tab3 = st.tabs(["00961 (月配)", "00878 (季配)", "0056 (季配)"])
+        # 修改後：包含 0050 在內的全標的估值卡片區
+        st.subheader("🔔 全標的位階與加碼檢核區")
+        tab1, tab2, tab3, tab4 = st.tabs(["0050 (市值)", "00961 (月配)", "00878 (季配)", "0056 (季配)"])
 
+        # 0050 專用檢核邏輯 (看拉回 MDD)
+        def render_0050_card():
+            if "0050" in market_data and not market_data["0050"].empty:
+                df = market_data["0050"]
+                price = float(df["close"].iloc[-1])
+                h_180d = float(df["close"].tail(120).max())
+                mdd_180d = ((price - h_180d) / h_180d) * 100
+
+                st.write(f"**元大台灣50 (0050)** 最新股價：**{price:.2f} 元**")
+                st.caption(f"近半年最高價：{h_180d:.2f} 元 ｜ 高點拉回幅度：{mdd_180d:.1f}%")
+
+                if mdd_180d <= -15:
+                    st.error("🟢 **【大幅修正】** 盤勢拉回超過 15%，建議動用預備金單筆大舉加碼！")
+                elif mdd_180d <= -10:
+                    st.warning("🟢 **【技術修正】** 盤勢拉回超過 10%，建議當月定期定額扣款翻倍。")
+                else:
+                    st.success("⚪ **【常態扣款】** 盤勢高檔維持，保持原計畫定期定額即可。")
+
+        # 高股息通用檢核邏輯
         def render_etf_card(stock_id, stock_name):
             if stock_id in market_data and not market_data[stock_id].empty:
                 df = market_data[stock_id]
@@ -131,10 +141,12 @@ if market_data:
                     st.success("🟡 **【常態回買】** 價格合理，按計畫進行配息再投資。")
 
         with tab1:
-            render_etf_card("00961", "FT臺灣永續高息")
+            render_0050_card()
         with tab2:
-            render_etf_card("00878", "國泰永續高股息")
+            render_etf_card("00961", "FT臺灣永續高息")
         with tab3:
+            render_etf_card("00878", "國泰永續高股息")
+        with tab4:
             render_etf_card("0056", "元大高股息")
 
         st.divider()
