@@ -30,11 +30,8 @@ def get_finmind_price(stock_id: str):
 
 def check_high_dividend_etf(stock_id: str, stock_name: str, df: pd.DataFrame):
     p = df["close"].iloc[-1]
-    
-    # 乾淨寫法，絕不出錯
     h_52w = df["close"].max()
     l_52w = df["close"].min()
-    
     rank_52w = ((p - l_52w) / (h_52w - l_52w)) * 100 if h_52w != l_52w else 50
     
     df["MA60"] = df["close"].rolling(60).mean()
@@ -87,6 +84,7 @@ def run_monthly_check():
         if not df_etf.empty:
             msg_lines.extend(check_high_dividend_etf(sid, sname, df_etf))
 
+    # 倒數第二行：此處已加入 web_app_url=STREAMLIT_URL，發送 Telegram 訊息時會自動加上按鈕！
     notifier.send_message("\n".join(msg_lines), web_app_url=STREAMLIT_URL)
 
 if __name__ == "__main__":
