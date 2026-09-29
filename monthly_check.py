@@ -19,17 +19,23 @@ def get_finmind_price(stock_id: str):
         "start_date": start_date,
         "token": FINMIND_TOKEN
     }
-    resp = requests.get(url, params=params).json()
-    if resp.get("status") == 200 and len(resp.get("data", [])) > 0:
-        df = pd.DataFrame(resp["data"])
-        df["close"] = df["close"].astype(float)
-        return df
+    try:
+        resp = requests.get(url, params=params).json()
+        if resp.get("status") == 200 and len(resp.get("data", [])) > 0:
+            df = pd.DataFrame(resp["data"])
+            df["close"] = df["close"].astype(float)
+            return df
+    except Exception as e:
+        print(f"抓取 {stock_id} 失敗: {e}")
     return pd.DataFrame()
 
 def check_high_dividend_etf(stock_id: str, stock_name: str, df: pd.DataFrame):
     """通用高股息 ETF 估值與買進檢核邏輯"""
     p = df["close"].iloc[-1]
-    h_52w, l_52w = df["close"].max(), df_961 = df["close"].min()
+    
+    # 修正語法錯誤：正確取得 52 週最高價與最低價
+    h_52w = df["close"].max()
+    l_52w = df["close"].min()
     rank_52w = ((p - l_52w) / (h_52w - l_52w)) * 100 if h_52w != l_52w else 50
     
     df["MA60"] = df["close"].rolling(60).mean()
