@@ -1,10 +1,10 @@
-name: Monthly ETF Check
+name: Daily ETF Check (Mon-Fri 10:00 & 13:00)
 
 on:
   schedule:
-    # cron 語法：每月 1 號 UTC 時間 01:00 (即台灣時間上午 09:00) 自動執行
-    - cron: '0 1 1 * *'
-  workflow_dispatch: # 允許你隨時在 GitHub 上按按鈕手動測試觸發
+    # 台灣時間週一至週五 每日 10:00 與 13:00 自動執行 (UTC 02:00 與 05:00)
+    - cron: '0 2,5 * * 1-5'
+  workflow_dispatch: # 保留手動點擊觸發按鈕，隨時可測試
 
 jobs:
   run-check:
@@ -21,7 +21,7 @@ jobs:
       - name: 安裝所需套件
         run: pip install requests pandas
 
-      - name: 執行每月檢核與發送 Telegram 提醒
+      - name: 執行每日檢核與發送 Telegram 提醒
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
