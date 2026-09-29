@@ -33,7 +33,6 @@ def check_high_dividend_etf(stock_id: str, stock_name: str, df: pd.DataFrame):
     """通用高股息 ETF 估值與買進檢核邏輯"""
     p = df["close"].iloc[-1]
     
-    # 修正語法錯誤：正確取得 52 週最高價與最低價
     h_52w = df["close"].max()
     l_52w = df["close"].min()
     rank_52w = ((p - l_52w) / (h_52w - l_52w)) * 100 if h_52w != l_52w else 50
