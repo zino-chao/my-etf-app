@@ -13,6 +13,7 @@ st.markdown("""
         #MainMenu {visibility: hidden;}
         footer {visibility: hidden;}
         header {visibility: hidden;}
+        .block-container {padding-top: 1.5rem; padding-bottom: 3rem;}
     </style>
 """, unsafe_allow_html=True)
 
@@ -38,6 +39,7 @@ def fetch_finmind_data(stock_id: str) -> pd.DataFrame:
         pass
     return pd.DataFrame()
 
+# 1,000 萬資產 70/30 配置預設持股張數
 DEFAULT_HOLDINGS = {
     "0050": {"name": "元大台灣50", "shares": 35000, "type": "市值型 (70%)"},
     "00878": {"name": "國泰永續高股息", "shares": 45000, "type": "高股息 (10%)"},
@@ -45,10 +47,10 @@ DEFAULT_HOLDINGS = {
     "00961": {"name": "FT臺灣永續高息", "shares": 100000, "type": "高股息 (10%)"}
 }
 
-st.title("📱 1,000 萬資產儀表板")
+st.title("📱 1,000 萬資產與全標的檢核")
 
 market_data = {}
-with st.spinner('數據更新中...'):
+with st.spinner('同步最新股市數據中...'):
     for sid in DEFAULT_HOLDINGS.keys():
         df_stock = fetch_finmind_data(sid)
         if not df_stock.empty:
@@ -79,22 +81,48 @@ if market_data:
     st.plotly_chart(fig_ratio, use_container_width=True)
 
     st.divider()
-    st.subheader("🔔 00961 每月加碼檢核")
-    
-    if "00961" in market_data:
-        df_961 = market_data["00961"]
-        price_961 = df_961["close"].iloc[-1]
-        h_52w, l_52w = df_961["close"].max(), df_961["close"].min()
-        df_961["MA60"] = df_961["close"].rolling(60).mean()
-        ma60 = df_961["MA60"].iloc[-1]
-        bias_60 = ((price_961 - ma60) / ma60) * 100
-        rank_52w = ((price_961 - l_52w) / (h_52w - l_52w)) * 100 if h_52w != l_52w else 50
 
-        st.write(f"當前股價：**{price_961:.2f} 元**（52週位階：**{rank_52w:.1f}%**）")
+    # 個別高股息標的檢核區卡片
+    st.subheader("🔔 高股息 ETF 領息加碼檢核區")
 
-        if rank_52w < 25 and bias_60 < -3:
-            st.error("🟢 **【強烈加碼訊號】** 處於相對低點！建議：配息 100% 回買並加碼。")
-        elif rank_52w > 80 and bias_60 > 5:
-            st.warning("🔴 **【高估值觀望】** 處於高點區。建議：配息暫存現金池。")
-        else:
-            st.success("🟡 **【常態回買】** 價格合理。建議：將配息按原計畫常態回買。")
+    # 分頁標籤切換
+    tab1, tab2, tab3 = st.tabs(["00961 (月配)", "00878 (季配)", "0056 (季配)"])
+
+    def render_etf_card(stock_id, stock_name):
+        if stock_id in market_data:
+            df = market_data[stock_id]
+            price = df["close"].iloc[-1]
+            h_52w, l_52w = df["close"].max(), df["close"].min()
+            df["MA60"] = df["close"].rolling(60).mean()
+            ma60 = df["MA60"].iloc[-1]
+            bias_60 = ((price - ma60) / ma60) * 100
+            rank_52w = ((price - l_52w) / (h_52w - l_52w)) * 100 if h_52w != l_52w else 50
+
+            st.write(f"**{stock_name}** 最新股價：**{price:.2f} 元**")
+            st.caption(f"52 週位階：{rank_52w:.1f}% ｜ 季線乖離率：{bias_60:+.1f}%")
+
+            if rank_52w < 25 and bias_60 < -3:
+                st.error("🟢 **【低點加碼】** 處於歷史相對低區，建議配息 100% 回買並加碼。")
+            elif rank_52w > 80 and bias_60 > 5:
+                st.warning("🔴 **【高估值觀望】** 處於高點區，建議配息暫存現金池。")
+            else:
+                st.success("🟡 **【常態回買】** 價格合理，按計畫進行配息再投資。")
+
+    with tab1:
+        render_etf_card("00961", "FT臺灣永續高息")
+    with tab2:
+        render_etf_card("00878", "國泰永續高股息")
+    with tab3:
+        render_etf_card("0056", "元大高股息")
+
+    st.divider()
+
+    with st.expander("📊 查看完整 4 檔持股明細"):
+        st.dataframe(
+            df_pf[["代號", "名稱", "類別", "最新價", "持有張數", "當前市值"]].style.format({
+                "最新價": "${:.2f}",
+                "持有張數": "{:.0f} 張",
+                "當前市值": "${:,.0f}"
+            }),
+            use_container_width=True
+        )
