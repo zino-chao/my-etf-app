@@ -1,17 +1,15 @@
 name: Daily ETF Check (Mon-Fri 10:05 & 13:05)
 
 on:
-  schedule:
-    # 台灣時間週一至週五 每日 10:05 與 13:05 自動執行 (UTC 02:05 與 05:05)
-    # 避開 00 分整點流量高峰，解決 GitHub 自動 Drop 丟棄排程的問題
-    - cron: '5 2,5 * * 1-5'
-  workflow_dispatch: # 保留手動點擊觸發按鈕，隨時可測試
+  repository_dispatch:
+    types: [daily_check] # 接收來自 cron-job.org 的 daily_check 觸發指令
+  workflow_dispatch:      # 保留 GitHub UI 上的手動測試按鈕
 
 jobs:
   run-check:
     runs-on: ubuntu-latest
     env:
-      TZ: 'Asia/Taipei' # 設定 Runner 系統時區為台灣時間
+      TZ: 'Asia/Taipei' # 確保執行環境時區為台灣時間
     steps:
       - name: 下載專案程式碼
         uses: actions/checkout@v4
@@ -22,7 +20,9 @@ jobs:
           python-version: '3.10'
 
       - name: 安裝所需套件
-        run: pip install requests pandas
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests pandas
 
       - name: 執行每日檢核與發送 Telegram 提醒
         env:
